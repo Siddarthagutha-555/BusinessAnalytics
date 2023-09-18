@@ -1,0 +1,30 @@
+---
+title: "Business Analytics Assignment_1  Venkata Naga Siddartha Gutha"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r}
+library(ISLR)
+#Using Carseats dataset
+#summary of carseats
+summary(Carseats)
+#number of observations in the carseats dataset
+nrow(Carseats)
+#Maximum value of advertising attribute
+max(Carseats$Advertising)
+#IQR of the price attribute
+IQR(Carseats$Price)
+
+#ploting sales against price
+
+plot(Carseats$Sales,Carseats$Price)
+
+##in the graph it can be seen that sales increases as the price decreases
+
+#calculating the corelation of sales and price
+cor(Carseats$Sales,Carseats$Price,method='pearson')
+# value of corelation of sales and price is -0.4449. This shows that both the attributeS are inversely related to each other.
+```
+
