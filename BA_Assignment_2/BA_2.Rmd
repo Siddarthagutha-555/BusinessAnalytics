@@ -1,0 +1,204 @@
+---
+title: "Assignment – Online Retail Analytics"
+author: "Venkata Naga Siddartha Gutha"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+# importing the data
+data<-read.csv("C:/Users/sidda/Downloads/Online_Retail.csv")
+head(data)
+#Descriptive statistics
+summary(data)
+
+```
+**Question 1**
+
+```{r}
+#Total number of transactions by each country with more than 1% transactions
+Country_transactions<-data%>%group_by(Country)%>%
+  summarise(number_of_transactions=n(),percentage=100*(n()/nrow(data)))   %>%filter(percentage>0.1)%>%arrange(desc(percentage))
+
+Country_transactions
+```
+**Question 2**
+Adding a new variable ‘Transaction Value’ to the dataframe
+```{r}
+# Adding new variable Transaction value to dataframe
+data<-data%>%mutate(Transaction_value=Quantity*UnitPrice)
+head(data)
+```
+**Question 3**
+The breakdown of transaction values by countries with total transaction exceeding 130,000 British Pound. 
+```{r}
+Total_transaction_country<-data%>%group_by(Country)%>%
+  summarise(Total_sum_of_Transactions=sum(Transaction_value))%>%
+  filter(Total_sum_of_Transactions>13000)
+Total_transaction_country
+```
+**Question 4**
+
+```{r}
+Temp=strptime(data$InvoiceDate,format = '%m/%d/%Y%H:%M',tz='GMT')
+head(Temp)
+#let’s  separate  date,  day  of  the  week  and  hour  components dataframe with names as New_Invoice_Date, Invoice_Day_Week and New_Invoice_Hour
+data$New_Invoice_Date <- as.Date(Temp) 
+# the difference between the two dates in terms of the number days
+data$New_Invoice_Date[20000]- data$New_Invoice_Date[10] 
+
+#Converting dates to days
+data$Invoice_Day_Week=weekdays(data$New_Invoice_Date) 
+#converting hour into numeric value
+data$New_Invoice_Hour = as.numeric(format(Temp, "%H")) 
+#converting month into numeric value
+data$New_Invoice_Month = as.numeric(format(Temp, "%m")) 
+head(data)
+```
+a) Percentage  of  transactions  (by  numbers)  by  days  of  the  week 
+```{r}
+transactions_per_days_of_week<-data %>% group_by(Invoice_Day_Week) %>% 
+  summarise(Percent_of_transactions_per_days_of_week = 100*(n()/nrow(data)))
+
+transactions_per_days_of_week
+```
+b)percentage  of  transactions  (by  transaction  volume)  by  days  of  the  week
+```{r}
+Transactions_Volume_by_week<-data %>% group_by(Invoice_Day_Week) %>% 
+  summarise(Percent_of_Transactions_Volume_by_week=100*(sum(Transaction_value)/sum(data$Transaction_value)))
+Transactions_Volume_by_week
+```
+c) Percentage of transactions (by transaction volume) by month of the year 
+```{r}
+Percentage_Transactions_by_Month<-data %>% group_by(New_Invoice_Month) %>% 
+  summarise(Percentage_Transactions_by_Month=100*(sum(Transaction_value)/sum(data$Transaction_value)))
+Percentage_Transactions_by_Month
+```
+d) Date with the highest number of transactions from Australia
+```{r}
+Aus<-filter(data,Country=="Australia") %>% group_by(InvoiceDate) %>% 
+  summarise(Australia_highest_no_transactions=n()) 
+Aus[which.max(Aus$Australia_highest_no_transactions),]
+```
+e) The  company  needs  to  shut  down the  website  for  two  consecutive  hours  for  maintenance. What would be the hour of the day to start this so that the distribution is at minimum for the customers? The responsible IT team is available from 7:00 to 20:00 every day
+```{r}
+distribution<-data %>% group_by(New_Invoice_Hour)%>% 
+  summarise(No_Of_Transactions=n(),Percentage=100*(n()/nrow(data))) %>%
+  filter(New_Invoice_Hour >=7 & New_Invoice_Hour <= 20) 
+distribution
+#Plotting a graph to show the website visitors for transactions per hour
+hist(data$New_Invoice_Hour,
+     main="Histogram of visitors by hour for each day",
+     col = "orange",
+     xlab = "Hours",
+     ylab= "No. of Visitors",
+     breaks = 12
+     )
+```
+It can be seen from the graph that the best time for maintenance shutdown would be 6:00 am and 20:00 pm and it is also mentioned that responsible IT team is available from 7:00 to 20:00 every day.
+
+**Question 5**
+Plotting the histogram of transaction values from Germany.
+```{r}
+Transactions_Germany<-filter(data,Country=="Germany")
+hist(Transactions_Germany$Transaction_value,
+     main = "Histogram of Transaction values from Germany",
+     col = 'Blue',
+     xlab = "Germany Transaction Values",
+     ylab="Frequency",
+     xlim = c(-150,300),
+     breaks=500)
+```
+**Question 6**
+Which customer had the highest number of transactions? Which customer is most valuable (i.e.highest total sum of transactions)? 
+```{r}
+# highest No. of transactions(valuable customer)
+Customer_high_transactions_withNA<-data %>%  group_by(CustomerID) %>% 
+  summarise(Highest_no_of_Trans_with_NAValues=n()) %>% arrange(desc(Highest_no_of_Trans_with_NAValues)) %>%
+  top_n(1)
+Customer_high_transactions_withNA
+# highest No. of transactions without NA
+Customer_high_transactions_without_NA<-data %>% na.omit() %>% 
+  group_by(CustomerID) %>% summarise(Highest_no_of_Trans=n()) %>% arrange(desc(Highest_no_of_Trans)) %>%
+  top_n(1)
+Customer_high_transactions_without_NA
+
+# Considering the Transaction Value 
+#with NA Values
+Customer_high_transactionvalue_with_NA<-data %>% group_by(CustomerID) %>% 
+  summarise(Highest_Trans_Volume_with_NAValues=sum(Transaction_value)) %>% 
+  arrange(desc(Highest_Trans_Volume_with_NAValues)) %>% top_n(1)
+Customer_high_transactionvalue_with_NA
+# without NA values
+ Customer_high_transactionvalue_without_NA<- data %>% na.omit() %>% group_by(CustomerID) %>% 
+  summarise(Highest_Trans_Volume=sum(Transaction_value)) %>% arrange(desc(Highest_Trans_Volume)) %>% top_n(1)
+Customer_high_transactionvalue_without_NA
+```
+**Question 7**
+The  percentage  of  missing  values  for  each  variable  in  the  data set 
+```{r}
+#Percentage of missing values in the data
+Percentage_Missing_Values<-colMeans(is.na(data))
+Percentage_Missing_Values
+```
+Data has 24.92% of missing Customer ID values.
+
+**Question 8**
+The number of transactions with missing Customer ID records by countries
+```{r}
+#No. of transactions with missing Customer ID records by countries
+data%>%filter(is.na(data$CustomerID)) %>% group_by(Country) %>% 
+  summarise(No_of_missing_ID=n()) %>% arrange(desc(No_of_missing_ID)) 
+```
+**Question 9**
+On average, how often the customers comeback to the website for their next shopping? 
+```{r}
+# The average number of days between consecutive shopping per customer (with all the transactions)
+data_without_NA<- data %>% na.omit() 
+Avg_days_Per_Customer<- select(data_without_NA,CustomerID,New_Invoice_Date) %>% 
+  distinct(CustomerID,New_Invoice_Date) %>%   group_by(CustomerID) %>%
+  arrange(New_Invoice_Date) %>% summarise(avg=mean(diff(New_Invoice_Date))) %>% 
+  na.omit()
+
+#The average number of days between shopping per customer (with out cancelled transactions)
+Avg_days_Per_Cust_without_Cancelled_trans<- select(data_without_NA,CustomerID,New_Invoice_Date) %>% 
+  filter(data_without_NA$Quantity>0) %>% distinct(CustomerID,New_Invoice_Date) %>%   
+  group_by(CustomerID) %>% arrange(New_Invoice_Date) %>% summarise(avg=mean(diff(New_Invoice_Date))) %>% 
+  na.omit() 
+head(Avg_days_Per_Cust_without_Cancelled_trans)
+#Average number of days between consecutive shopping for all the customers
+Avg_days_Per_Cust_without_Cancelled_trans%>% summarise(avg_days_between_shopping = mean(avg))
+```
+
+**Question 10**
+n the retail sector, it is very important to understand the return rate of the goods purchased by customers.In  this example, we can define  this  quantity,  simply,  as  the  ratio  of  the  number  of transactions cancelled (regardless of the transaction value) over the total number of transactions. With this definition, what is the return rate for  the French customers? Consider the cancelled transactions as those where the ‘Quantity’ variable has a negative value.
+
+```{r}
+#Calculation of return rate for the french customers
+Transactions_France<-filter(data,Country=='France')
+Cancelled_Transactions_France<-filter(data,Country=='France'& Quantity<0) 
+Return_rate_France<- (nrow(Cancelled_Transactions_France)/nrow(Transactions_France))*100
+Return_rate_France
+```
+The return rate for the customers in France is 1.741264
+
+**Question 11**
+Product that has generated the highest revenue for the retailer
+```{r}
+
+Product_Revenue<-data %>% group_by(Description) %>% summarise(Product_Revenue=sum(Transaction_value)) %>% arrange(desc(Product_Revenue)) %>% top_n(1)
+as.data.frame(Product_Revenue)
+```
+**Question 12**
+unique customers in the dataset
+```{r}
+Unique_Customers<-length(unique(data$CustomerID))
+Unique_Customers
+
+```
+There are 4373 unique customers in the data set
