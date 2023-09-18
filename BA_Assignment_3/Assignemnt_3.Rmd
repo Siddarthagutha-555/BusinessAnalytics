@@ -1,0 +1,138 @@
+---
+title: "Regression Assignment"
+author: "Venkata Naga Siddartha Gutha"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+1. a)
+```{r}
+set.seed(2017) 
+X=runif(100)*10 
+Y=X*4+3.45 
+Y=rnorm(100)*0.29*Y+Y 
+plot(Y~X)
+
+```
+
+from the graph it can bee seen that value of y increases with incease in x.This indicates that there is some relation between X and Y. So, yes they can be put into a linear model to explain y based on x
+
+
+1. b)
+```{r}
+model<-lm(Y~X)
+model
+summary(model)
+
+
+```
+Equation:
+Y= 4.465+(3.611)*X
+
+
+Accuracy of a model is determained by r Squared value and in this case it is 0.6517, this means that the model explains 65.17% variability of the response variable i.e Y.
+
+1. c)
+
+
+In the above case Correlation Coefficient is equal to the Coefficent of Determination (R^2 ) as the regression is based on single variable. Therefore Correlation Coefficient = R^2=O.6517
+
+
+2. a)
+```{r}
+head(mtcars)
+lm_james<-lm(hp~wt,data = mtcars)
+summary(lm_james)
+
+lm_chris<-lm(hp~mpg,data = mtcars)
+summary(lm_chris)
+
+
+```
+Chris is correct as the model made on Chris opinion has an accuracy of 0.6024 which is higher than accuracy of 0.4339 of the model made on James opinion 
+
+2. b)
+```{r}
+model_hp<-lm(hp~cyl+mpg,data = mtcars)
+summary(model_hp)
+
+predict(model_hp,data.frame(cyl=4,mpg=22))
+
+
+```
+
+From the model it is estimated that the Horse Power of a car with 4 calendar and mpg of 22 is 88.93618.
+
+
+3. a)
+```{r}
+library(mlbench)
+data("BostonHousing")
+head(BostonHousing)
+
+Boston_model<-lm(medv~crim+zn+ptratio+chas,data = BostonHousing)
+summary(Boston_model)
+```
+
+From the summary of the model it can be seen r squared value is 0.3588. This implies that accuracy of the model is low.
+
+
+
+3. b) i.
+
+When two houses are identical in all aspects then the one that bounds Charles River is more expensive by $4583.9. This is because coefficient of Charles variable is 4.5839 and price is measured inn 1000's of USD.
+
+
+
+3. b) ii.
+
+Coefficient of pupil-teacher ratio from the model is -1.493. This indicates that for every unit increase of pupil-teacher ratio the price of house decreases by $1493. So, the price of house with pupil-teacher ratio 15, 18 is reduced by 22395 and 26874 USD respectively. Therefore the house with pupil_teacher ratio 15 is USD 4479 more expensive than the house with pupil_teacher ratio 18.
+
+
+
+3. c)
+
+
+The variables crime  crate  (crim),  proportion  of  residential  land zoned  for  lots  over  25,000  sq.ft  (zn),  the  local pupil-teacher ratio  (ptratio)  and  whether  the  tract  bounds Charles River(chas) that are used in the model are all statistically important as their p-values lies between 0 and 0.001.
+
+
+
+3. d)
+```{r}
+anova(Boston_model)
+
+```
+From the anova analysis the order of importance of the four variables is as follows:
+
+
+1.crime  crate  (crim)
+
+
+2.the  local pupil-teacher ratio  (ptratio)
+
+
+3.proportion  of  residential  land zoned  for  lots  over  25,000  sq.ft  (zn)
+
+
+4.the  tract  bounds Charles River(chas)
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
+
+```{r}
+
+
+```
+
