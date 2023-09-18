@@ -1,0 +1,506 @@
+---
+title: "Business Analytics Final Project"
+author: "Group 5"
+output:
+  word_document: default
+  pdf_document: default
+---
+Problem Summary:
+\newline
+Customers in telecom industry move from one carrier to other for various reasons. This makes it difficult for the companies to retain the customers. When a customer leaves, company not only loses the 
+future revenue from that customer but also the resources spend to acquire that customer.So the Churn is a major problem in telecom industry,
+\newline
+
+In order to stop the churn companies follow two strategies. one is untargeted approach, in which company does mass advertising to 
+increase brand loyalty and thus retain customers. Other approach is targeted approach. In this companies tries to identify customers who are most likely to churn. Once they are identified companies then try to stop them from moving to other carrier by strategic marketing and by providing better deals.
+
+\newline
+Project Goal:
+\newline
+Goal of the project is to build a model that can predict customers who are likely to churn using historical data of ACB Wireless Inc.
+
+
+
+Loading all required libraries
+```{r}
+library(dplyr)
+library(ggplot2)
+library(corrplot)
+library(tidyverse)
+library(VIM)
+library(ggcorrplot)
+library(pROC)
+library(gmodels)
+library(rpart)
+library(class)
+library(caret)
+library(rattle)
+library(rpart.plot)
+
+```
+
+Loading the data set
+
+
+```{r}
+ChurnData_ABC<-read.csv("C:/Users/sidda/Downloads/Churn_Train.csv")
+
+```
+
+Examining the data set
+```{r}
+
+head(ChurnData_ABC)
+str(ChurnData_ABC)
+
+
+```
+
+Overview of the data
+\newline
+Descriptive statistics of the data
+
+\newline
+Central tendencies of the data
+
+```{r}
+summary(ChurnData_ABC)
+
+```
+
+Converting all categorical variables of the data to facots
+```{r}
+ChurnData_ABC$state<-as.factor(ChurnData_ABC$state)
+ChurnData_ABC$area_code<-as.factor(ChurnData_ABC$area_code)
+ChurnData_ABC$international_plan<-as.factor(ChurnData_ABC$international_plan)
+ChurnData_ABC$voice_mail_plan<-as.factor(ChurnData_ABC$voice_mail_plan)
+ChurnData_ABC$churn<-as.factor(ChurnData_ABC$churn)
+
+```
+
+
+
+Measuring Dispersion and Skewness of the data
+
+```{r}
+ChurnData_ABC[, 6:19] %>%
+  gather(key = Variable, value = Value) %>%
+  ggplot() +
+  geom_histogram(aes(x = Value), fill = "violet") +
+  facet_wrap(~Variable, scales='free')
+```
+
+From the above graphs it can be seen that most of the data is symmetrically distributed. Number of customer service calls has an irregular skewness. Total day minutes and Total evening minutes has significant amount of outliers.
+
+
+\newline
+Data Exploration
+
+\newline
+
+
+Churn in the data
+```{r}
+ggplot(ChurnData_ABC) +
+ aes(x = churn,y = ..count..) +
+  geom_bar(stat = "count") +
+stat_count(geom = "text", colour = "black", size = 3.5,
+aes(label = ..count..),position=position_stack(vjust=1.15))+
+ geom_bar(fill = "#C7812C") 
+
+
+```
+
+
+The above graph implies that in the data provided 2850 customers didn't churn and 483 customers switched to other carriers.
+
+\newline
+Lets plot churn against total day charges
+
+```{r}
+
+ggplot(ChurnData_ABC) +
+ aes(x = churn, y = total_day_charge) +
+ geom_boxplot(fill = "#C7812C") +
+ 
+ theme_minimal()
+
+```
+Above results show that the mid point of the box plot in the case of churn is yes is slightly higher than that of no churn. This means that the customers who are paying total day charge more than 30 are more likely to churn.
+
+\newline
+
+Churn rate based on Customer service calls
+```{r}
+ggplot(ChurnData_ABC) +
+ aes(x = churn, y = number_customer_service_calls, fill = churn) +
+ geom_boxplot() +
+ scale_fill_brewer(palette = "Accent", direction = 1) +
+ theme_minimal()
+
+ChurnData_ABC%>%filter(churn=='yes' & number_customer_service_calls >= 1)%>%tally()/483
+
+```
+The above distribution shows that customers who has called customers service more than 2-3 times are more likely to churn. About 76% of customers who called customer service more than once has churned.
+
+\newline
+
+Relation between Churn rate and international plan
+```{r}
+Churn_Internationalplan<-ChurnData_ABC%>%group_by(international_plan)%>%summarise(count = n())
+
+library(ggplot2)
+
+ggplot(ChurnData_ABC) +
+ aes(x = international_plan, y= ..count.., fill = churn) +
+ geom_bar(stat = 'count') +
+  stat_count(geom = 'text',aes(label = ..count..))+
+ scale_fill_brewer(palette = "Accent", 
+ direction = 1) +
+ theme_minimal()
+
+
+ChurnData_ABC%>%filter(churn=='yes')%>%
+group_by(international_plan) %>%
+select(international_plan) %>%
+dplyr:: summarise("Churn Count" =n(), "Percent" = n()/483)
+
+ChurnData_ABC%>%filter(international_plan=='yes')%>%
+group_by(churn) %>%
+select(churn) %>%
+dplyr:: summarise("Churn Count" =n(), "Percent" = n()/323)
+
+
+
+```
+
+The above results show that 42% of customers with the international plan are likely to churn.
+
+
+
+Lets plot churn against state
+```{r}
+Churn_State<-ChurnData_ABC%>%filter(churn=='yes')%>%group_by(state)%>%summarise(count = n())
+Churn_State
+
+
+library(ggplot2)
+
+ggplot(Churn_State) +
+ aes(x = state, y = count) +
+ geom_col(fill = "#C7812C") +
+ theme_minimal()
+
+
+
+```
+
+The graph shows that the States Maryland, New Jersey, Michigan and
+Texas have high churn rate.
+
+
+
+lets plot churn against voice mail plan
+```{r}
+
+
+library(ggplot2)
+
+ggplot(ChurnData_ABC) +
+ aes(x = voice_mail_plan, fill = churn) +
+ geom_bar() +
+ scale_fill_hue(direction = 1) +
+ theme_minimal()
+
+
+ChurnData_ABC%>%filter(voice_mail_plan=='yes')%>%
+group_by(churn) %>%
+select(churn) %>%
+dplyr:: summarise("Churn Count" =n(), "Percent" = n()/922)
+
+```
+From the above graph it is clear that only few customers with voice mail plan has churned. To be precise only 8.7% of customers with voice mail plan has switched to other carriers. This shows that churn is weakly related to voice mail plan.
+
+
+\newline
+
+Data Cleaning:
+
+\newline
+checking number of missing values in each column
+```{r}
+map(ChurnData_ABC,~sum(is.na(.)))
+```
+The results show that there are significant amount of missing values in few columns.
+
+\newline
+imputing the missing values using k-Nearest Neighbors (k-NN) method.
+
+\newline
+Building a KNN model to find best k to use while imputing
+```{r}
+set.seed(567)
+#omitting all missing values
+Churn_omitted_NAvalues<-na.omit(ChurnData_ABC)
+searchGrid <- expand.grid(k=seq(1:30))
+set.seed(567)
+model<-train(churn~.,data=Churn_omitted_NAvalues,method="knn",tuneGrid=searchGrid)
+
+#finding best K
+set.seed(567)
+bestK<-model$bestTune[[1]]
+bestK
+
+```
+
+
+So the best K value to use while imputing the data is 
+
+
+```{r}
+
+set.seed(567)
+imputed_dataset<-kNN(ChurnData_ABC,variable = c('account_length','number_vmail_messages',
+                                                'total_day_minutes','total_day_calls','total_day_charge',
+                                                'total_eve_minutes','total_eve_calls','total_eve_charge',
+                                                'total_night_minutes','total_night_charge','total_intl_minutes',
+                                                'total_intl_calls','total_intl_charge','number_customer_service_calls'
+                                                ),k=bestK)
+
+map(imputed_dataset,~sum(is.na(.)))
+
+#Removing extra variables which are created while imputing the data
+imputed_dataset<-imputed_dataset[,-(21:34)]
+
+imputed_dataset$churn<-ChurnData_ABC$churn
+
+```
+
+Let us check the correlation between the variables given that the churn is equal to yes.
+
+```{r}
+Dataset_churnyes<-imputed_dataset %>% filter(churn=='yes')
+Correlation_churnyes<- cor(Dataset_churnyes[, 6:19])
+
+ggcorrplot(Correlation_churnyes, method = 'square',type = "upper", ggtheme = theme_linedraw)
+
+
+```
+
+From the above plot it can be interpreted for the customers who churned that there is a strong positive correlation between total evening minutes and total day minutes, total night charge and total night minutes,total international charge and total international minutes. This means that these variables are directly related to each other. 
+\newline
+It is also evident that the total day charge and the number of customer service calls has strong negative correlation for the customers churned.
+\newline
+
+Modeling Strategy:
+\newline
+Predictive Modeling can be done based on Regression and Decision Tree Models.In these models while predicting the dependent variable, different independent variables have different level of impact.
+
+\newline
+Regression modeling can be done in two ways:
+\newline
+1.Linear Regression
+\newmodel
+2.Logistic Regression
+\newline
+For the present project on ABC Wireless Inc Logistic regression is more appropriate compared to linear regression as the dependent variable is categorical.
+
+\newline
+Let us build models using both Logistic Regression and Decision Models and compare those to find the best one make predictions on the test data.
+\newline
+let us separate the data set into two parts as training and validation sets.
+\newline
+model will be built on training set and its performance will be tested on validation sets.
+\newline
+
+Partitioning the dataset
+Data Partition
+```{r}
+
+set.seed(567)
+train_index<-createDataPartition(imputed_dataset$churn,p=0.85,list=FALSE)
+trainingset<-imputed_dataset[train_index,]
+validationset<-imputed_dataset[-train_index,]
+
+```
+
+Building a Logistic Regression model:- 
+\newline
+A logistic regression model predicts a dependent data variable by analyzing the relationship between one or more existing independent variables and it is method used to predict a binary outcome, such as yes or no
+
+```{r}
+set.seed(567)
+Logistic_regressionModel<-glm(churn~.,data = trainingset ,family = "binomial" )
+Validation_predicted<-predict(Logistic_regressionModel,validationset,
+                              type='response')
+head(Validation_predicted)
+
+Result<-ifelse(Validation_predicted > 0.5,'yes','no')
+```
+
+Area under the curve of the ROC curve
+```{r}
+set.seed(567)
+roc(validationset$churn,Validation_predicted)
+plot.roc(validationset$churn,Validation_predicted)
+```
+Confusion Matrix
+```{r}
+set.seed(567)
+Confusion_Matrix_Lrm<-confusionMatrix(as.factor(Result),as.factor(validationset$churn))
+Confusion_Matrix_Lrm
+
+```
+
+Results of Confusion matrix for Logistic regression model
+\newline
+1. Accuracy : 87.37%
+\newline
+2. Sensitivity : 98.13% 
+\newline
+3. Specificity: 23.61%
+
+\newline
+\newline
+
+Building a Decision Tree Model :
+\newline
+A decision tree model is a graph which uses a branching method to explain every possible output for a specific input. 
+
+```{r}
+set.seed(567)
+Decision_treeModel<-rpart(churn~.,data=trainingset,method = 'class')
+
+head(Decision_treeModel$splits)
+Predicted_validation_decisiontree<-predict(Decision_treeModel,
+                                           validationset,type='class')
+
+head(Predicted_validation_decisiontree)
+```
+
+Area under the curve of the ROC curve
+```{r}
+set.seed(567)
+roc(validationset$churn,as.numeric(Predicted_validation_decisiontree))
+
+plot.roc(validationset$churn,as.numeric(Predicted_validation_decisiontree))
+```
+
+Confusion matrix of decision tree model
+```{r}
+set.seed(567)
+Confusionmatrix_DT<-confusionMatrix(as.factor(Predicted_validation_decisiontree),as.factor(validationset$churn))
+
+Confusionmatrix_DT
+```
+Results of Confusion matrix for Decision Tree model
+\newline
+1. Accuracy : 92.18%
+\newline
+2. Sensitivity : 96.25% 
+\newline
+3. Specificity: 68.06%
+
+\newline
+\newline
+
+Selecting the best model
+\newline
+On comparing the both models it can be seen that Decision tree model has better accuracy than logistic regression model. Though sensitivity of logistic regression model is higher, Decision tree model has significantly higher specificity. 
+
+\newline
+Therefore we are chosing Decision tree model as the best model to make predictions of the test data
+
+
+\newline
+Building a Decision Tree model using entire data set to predict churn of test data
+
+
+```{r}
+set.seed(567)
+ABC_model<-rpart(churn~.,imputed_dataset,method = 'class')
+head(ABC_model$splits)
+fancyRpartPlot(ABC_model)
+rpart.plot(ABC_model,cex=0.5)
+
+```
+
+Loading the test data
+```{r}
+set.seed(567)
+load("C:/Users/sidda/Downloads/Customers_To_Predict.RData")
+summary(Customers_To_Predict)
+# checking if there are any missing values
+map(Customers_To_Predict,~sum(is.na(.)))
+```
+There are no missing values in the test data set
+\newline
+Predicting the churn of the test data
+```{r}
+set.seed(567)
+Predicted_Churn<-predict(ABC_model,Customers_To_Predict,type = 'class')
+head(Predicted_Churn)
+summary(Predicted_Churn)
+
+```
+
+Ploting the graph for predicted churn
+```{r}
+set.seed(567)
+
+Predicted_Churn<-as.data.frame(Predicted_Churn)
+
+head(Predicted_Churn)
+
+library(ggplot2)
+
+ggplot(Predicted_Churn) +
+ aes(x = Predicted_Churn, y = ..count..) +
+  geom_bar(stat = "count") +
+  stat_count(geom = "text", colour = "black", size = 3.5,
+aes(label = ..count..),position=position_stack(vjust=1.32))+
+ geom_bar(fill = "#C7812C") +
+ labs(x = "Churn", y = "Number_of_Customers", 
+ title = "Predicted_Churn") +
+ theme_minimal()
+
+```
+
+The Decision Tree model has predicted that out of 1600 customers of test 157 customers are likely to churn.
+
+\newline
+Insights :
+\newline
+Following are the conclusions made from the Data Exploration:
+\newline
+1.customers who are paying total day charge more than 30 are more likely to churn
+\newline
+2.Customers who call customer service more than once are likely to churned. 
+\newline
+3.Customers with the international plan are more probable to switch to other carriers.
+\newline
+4.Customers from the States Maryland, New Jersey, Michigan and Texas have high churn rate
+
+\newline
+It is predicted that 149 customers from customers to predict data are likely to churn.
+
+\newline
+Suggestions and Recommendations:
+\newline
+ABC Wireless Inc should try to target those 149 customers as they is high chance to churn. Company need to do strategic marketing to those customers to improve brand loyalty of those customers.
+
+\newline
+Overall company need to take following steps in order to reduce churn rate:
+\newline
+1.Try to reduce the Total day charge.
+\newline
+2. Company need to improve the customer satisfaction as low customer satisfaction leads to customer service calls and it is directly related to churn.
+\newline
+3. Company need to provide better deals for the customers with international plan.
+\newline
+4.Company need to come  up with better marketing strategies for the Maryland, New Jersey, Michigan and Texas States.
+\newline
+```{r}
+
+```
+
